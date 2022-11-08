@@ -1,0 +1,20 @@
+[gd_resource type="Shader" format=3 uid="uid://d4gii44gl4rs5"]
+
+[resource]
+code = "shader_type spatial;
+
+  const float PHI = 1.61803398874989484820459; // Φ = Golden Ratio 
+
+  float gold_noise(in vec2 xy, in float seed)
+  {
+    return fract(tan(distance(xy*PHI, xy)*seed)*xy.x);
+  }
+void fragment() {
+	 float seed = fract(TIME); 
+	 vec2 xy = UV; 
+     ALBEDO       = vec3 (gold_noise(xy, seed+0.1),  // r
+                       gold_noise(xy, seed+0.2),  // g
+                       gold_noise(xy, seed+0.3));   // b
+                       
+}
+"

@@ -1,0 +1,180 @@
+[gd_scene load_steps=23 format=3 uid="uid://4xj5ldkhd8wf"]
+
+[ext_resource type="Shader" path="res://Test/random.gdshader" id="1_sq0qp"]
+[ext_resource type="Shader" path="res://Test/perlin.gdshader" id="2_auyn3"]
+[ext_resource type="Shader" path="res://Test/simplex.gdshader" id="3_2grse"]
+[ext_resource type="Shader" path="res://Test/fractal.gdshader" id="4_jgfjq"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ycgc2"]
+render_priority = 0
+shader = ExtResource("1_sq0qp")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ptu2h"]
+material = SubResource("ShaderMaterial_ycgc2")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h0v07"]
+render_priority = 0
+shader = ExtResource("2_auyn3")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_oun7i"]
+material = SubResource("ShaderMaterial_h0v07")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_khc3g"]
+render_priority = 0
+shader = ExtResource("3_2grse")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_f2le2"]
+material = SubResource("ShaderMaterial_khc3g")
+
+[sub_resource type="Shader" id="Shader_rmqay"]
+code = "shader_type spatial; 
+render_mode unshaded; 
+
+vec2 random2( vec2 p ) {
+    return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);
+}
+
+void fragment() {
+    vec2 st = UV; 
+    vec3 color = vec3(.0);
+    st *= 8.0;
+    vec2 i_st = floor(st);
+    vec2 f_st = fract(st);
+    float m_dist = 1.; 
+    for (int y= -1; y <= 1; y++) {
+        for (int x= -1; x <= 1; x++) {           
+            vec2 neighbor = vec2(float(x),float(y));
+            vec2 point = random2(i_st + neighbor);
+            point = 0.5 + 0.5*sin(TIME + 6.2831*point);	
+            vec2 diff = neighbor + point - f_st;
+            float dist = length(diff);
+            m_dist = min(m_dist, dist);
+        }
+    }
+    color += m_dist;
+    color += 1.-step(.02, m_dist);
+    ALBEDO = color; 
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pn5do"]
+render_priority = 0
+shader = SubResource("Shader_rmqay")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_xvrpr"]
+material = SubResource("ShaderMaterial_pn5do")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_etys0"]
+render_priority = 0
+shader = ExtResource("4_jgfjq")
+shader_parameter/NUM_OCTAVES = 8
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_36hs8"]
+material = SubResource("ShaderMaterial_etys0")
+
+[sub_resource type="Shader" id="Shader_hvfvf"]
+code = "shader_type spatial; 
+const int NUM_OCTAVES = 7;
+
+float rand(vec2 n) { 
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+float noise(vec2 p){
+	vec2 ip = floor(p);
+	vec2 u = fract(p);
+	u = u*u*(3.0-2.0*u);
+	
+	float res = mix(
+		mix(rand(ip),rand(ip+vec2(1.0,0.0)),u.x),
+		mix(rand(ip+vec2(0.0,1.0)),rand(ip+vec2(1.0,1.0)),u.x),u.y);
+	return res*res;
+}
+
+float fbm(vec2 x) {
+	float v = 0.0;
+	float a = 0.5;
+	vec2 shift = vec2(100);
+	// Rotate to reduce axial bias
+    mat2 rot = mat2(
+				vec2(cos(0.5), sin(0.5)),
+				vec2(-sin(0.5), cos(0.50))
+				);
+	for (int i = 0; i < NUM_OCTAVES; ++i) {
+		v += a * noise(x);
+		x = rot * x * 2.0 + shift;
+		a *= 0.5;
+	}
+	return v;
+}
+
+void fragment(){
+	vec2 st = UV * 3.0; 
+    // st += st * abs(sin(u_time*0.1)*3.0);
+    vec3 color = vec3(0.0);
+
+    vec2 q = vec2(0.);
+    q.x = fbm( st + 0.00*TIME);
+    q.y = fbm( st + vec2(1.0));
+
+    vec2 r = vec2(0.);
+    r.x = fbm( st + 1.0*q + vec2(1.7,9.2)+ 0.15*TIME );
+    r.y = fbm( st + 1.0*q + vec2(8.3,2.8)+ 0.126*TIME);
+
+    float f = fbm(st+r);
+	ALBEDO = vec3(f); 
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_y3ui4"]
+render_priority = 0
+shader = SubResource("Shader_hvfvf")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_6baif"]
+material = SubResource("ShaderMaterial_y3ui4")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_cm5ro"]
+noise_type = 5
+domain_warp_enabled = true
+domain_warp_type = 1
+domain_warp_amplitude = 15.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_i0yg1"]
+noise = SubResource("FastNoiseLite_cm5ro")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hpx14"]
+albedo_texture = SubResource("NoiseTexture2D_i0yg1")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ih34f"]
+material = SubResource("StandardMaterial3D_hpx14")
+
+[node name="Node3D" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1)
+mesh = SubResource("PlaneMesh_ptu2h")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 1)
+mesh = SubResource("PlaneMesh_oun7i")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 1)
+mesh = SubResource("PlaneMesh_f2le2")
+
+[node name="MeshInstance3D4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 1)
+mesh = SubResource("PlaneMesh_xvrpr")
+
+[node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 3)
+mesh = SubResource("PlaneMesh_36hs8")
+skeleton = NodePath("../MeshInstance3D4")
+
+[node name="MeshInstance3D6" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 3)
+mesh = SubResource("PlaneMesh_6baif")
+skeleton = NodePath("../MeshInstance3D5")
+
+[node name="MeshInstance3D7" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 3)
+mesh = SubResource("PlaneMesh_ih34f")
+skeleton = NodePath("../MeshInstance3D5")
